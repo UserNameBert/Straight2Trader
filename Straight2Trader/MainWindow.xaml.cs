@@ -40,7 +40,7 @@ namespace Straight2Trader
                     if (!int.TryParse(SCUTextBox.Text, out int scu) || scu <= 0) return;
                     if (string.IsNullOrWhiteSpace(item) || !_itemDictionary.ContainsKey(item)) return;
 
-                    var (bestLocation, bestPriceString) = await _scraper.ScrapeSpecificItemsInfo(item);
+                    var (bestLocation, bestPriceString, _) = await _scraper.ScrapeSellInfo(item);
                     double.TryParse(bestPriceString.Replace(" aUEC", ""), out double bestPrice);
 
                     Items.Add(new Item
@@ -61,7 +61,7 @@ namespace Straight2Trader
 
                     foreach (var item in Items)
                     {
-                        var (bestLocation, bestPriceString) = await _scraper.ScrapeSpecificItemsInfo(item.ItemName);
+                        var (bestLocation, bestPriceString, _) = await _scraper.ScrapeSellInfo(item.ItemName);
                         double.TryParse(bestPriceString.Replace(" aUEC", ""), out double bestPrice);
 
                         item.SellLocation = bestLocation;
@@ -142,7 +142,7 @@ namespace Straight2Trader
 
                 if (string.IsNullOrWhiteSpace(sellLocation) || sellLocation == "Unknown")
                 {
-                    var (bestLocation, priceString) = await _scraper.ScrapeSpecificItemsInfo(entry.Key);
+                    var (bestLocation, priceString, _) = await _scraper.ScrapeSellInfo(entry.Key);
                     sellLocation = bestLocation;
 
                     if (double.TryParse(priceString.Replace(" aUEC", ""), out double parsedPrice))
@@ -162,6 +162,7 @@ namespace Straight2Trader
             ItemListView.Items.Refresh();
             UpdateCargoValue();
         }
+        //find best location base on user defined Largest SCU
         private async void OneLocationTakesAll_Click(object sender, RoutedEventArgs e)
         {
             if (!Items.Any()) return;
@@ -172,11 +173,10 @@ namespace Straight2Trader
 
             foreach (var item in Items)
             {
-                var sellData = await _scraper.ScrapeAllSellLocationsWithSCULimits(item.ItemName);
-                itemSellData[item.ItemName] = sellData;
-            }
+                var (_, _, allLocations) = await _scraper.ScrapeSellInfo(item.ItemName);
+                itemSellData[item.ItemName] = allLocations;
 
-            //find best location base on user defined Largest SCU
+            }
             foreach (var sellData in itemSellData.Values)
             {
                 foreach (var kvp in sellData)
@@ -193,11 +193,10 @@ namespace Straight2Trader
                     }
                 }
             }
-
             if (!locationItemCount.Any()) return;
             string bestLocation = locationItemCount.OrderByDescending(l => l.Value).First().Key;
 
-            //assign locationd to all items
+
             foreach (var item in Items)
             {
                 if (itemSellData.TryGetValue(item.ItemName, out var sellData) &&
