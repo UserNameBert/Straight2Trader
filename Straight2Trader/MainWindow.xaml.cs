@@ -1,9 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Windows.Controls;
 
 namespace Straight2Trader
@@ -15,6 +16,7 @@ namespace Straight2Trader
 
         private Dictionary<string, string> _itemDictionary;
         private Scraper _scraper;
+        private Jokes _jokes = new Jokes();
 
         public MainWindow()
         {
@@ -161,6 +163,29 @@ namespace Straight2Trader
             }
             ItemListView.Items.Refresh();
             UpdateCargoValue();
+        }
+
+        private void ClearCargo_Click(object sender, RoutedEventArgs e)
+        {
+            Items.Clear();
+            UpdateCargoValue();
+        }
+
+        private void ReceiptTxt_Click(object sender, RoutedEventArgs e)
+        {
+            if (!Items.Any()) return;
+            string folderPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Receipts");
+            Directory.CreateDirectory(folderPath);
+            string fileName = $"CargoListReceipt_{DateTime.Now:dd-MM-yyyy_HHmmss}.txt";
+            string filePath = System.IO.Path.Combine(folderPath, fileName);
+            using (var writer = new System.IO.StreamWriter(filePath))
+            {
+                foreach (var item in Items)
+                {
+                    writer.WriteLine($"{item.ItemName} - {item.SCU} SCU - {item.SellLocation} - {item.BestPrice:N0} aUEC - Total: {item.FormattedTotalValue}");
+                }
+                writer.WriteLine($"\n===== Total Cargo Value: {TotalCargoAmount:N0} aUEC ===== \n{_jokes.RandomMessage()}");
+            }
         }
         //find best location base on user defined Largest SCU
         private async void OneLocationTakesAll_Click(object sender, RoutedEventArgs e)
