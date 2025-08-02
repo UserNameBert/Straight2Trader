@@ -11,9 +11,10 @@ namespace Straight2Trader
     public class Scraper
     {
         private readonly HttpClient _httpClient = new HttpClient();
-        private const string BaseUrl = "https://uexcorp.space/commodities/info/name/";
+        public const string BaseUrl = "https://uexcorp.space/commodities/info/name/";
 
-        //fetch HTML
+
+
         private async Task<HtmlDocument> ScrapeHtmlAsync(string url)
         {
             var htmlDocument = new HtmlDocument();
@@ -24,25 +25,33 @@ namespace Straight2Trader
             }
             catch
             {
-                htmlDocument.LoadHtml("<html></html>"); //to avoid null issues, maybe the page was down
+                htmlDocument.LoadHtml("<html></html>");
             }
             return htmlDocument;
         }
 
-        //scrape all commodity names from the resources page
+        //scrap the commoditys and their in-game status
         public async Task<Dictionary<string, string>> ScrapeItemsAsync()
         {
             const string url = "https://uexcorp.space/resources/home";
             var htmlDocument = await ScrapeHtmlAsync(url);
+            var rows = htmlDocument.DocumentNode.SelectNodes("//table/tbody/tr");
+            var items = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            var itemNodes = htmlDocument.DocumentNode.SelectNodes("//table/tbody/tr/td[2]");
+            foreach (var row in rows)
+            {
+                var nameTd = row.SelectSingleNode("td[2]");
+                string itemName = nameTd?.InnerText.Trim();
 
-            return itemNodes != null
-                ? itemNodes
-                    .Select(n => n.InnerText.Trim())
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(name => name, name => name)
-                : new Dictionary<string, string>();
+                var inGame = row.SelectSingleNode("td[4]/i");
+                string inGameTitle = inGame?.GetAttributeValue("title", "").Trim();
+
+                if (!string.IsNullOrWhiteSpace(itemName) && string.Equals(inGameTitle, "Yes", StringComparison.OrdinalIgnoreCase))
+                {
+                    items[itemName] = itemName;
+                }
+            }
+            return items;
         }
 
         //scrape locations and prices
@@ -81,13 +90,9 @@ namespace Straight2Trader
         }
 
 
-        //some helper methods
-        private static List<string> ExtractNodes(HtmlDocument doc, string xpath) =>
-            doc.DocumentNode.SelectNodes(xpath)?.Select(n => n.InnerText).ToList() ?? new List<string>();
-
-        private static double ParsePrice(string priceText) =>
-            double.TryParse(priceText.Replace(" aUEC", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out double price)
-                ? price : 0.0;
+        //helper methods
+        private static double ParsePrice(string priceText) => double.TryParse(priceText.Replace(" aUEC", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out double price) ? price : 0.0;
+        private static string FormatItemName(string itemName) => itemName.ToLower().Replace(" ", "-").Replace("'", "");
 
         private static int ParseMaxSCU(string scuText)
         {
@@ -95,8 +100,5 @@ namespace Straight2Trader
             var parts = scuText.Split('-');
             return int.TryParse(parts.Last(), out int maxSCU) ? maxSCU : int.MaxValue;
         }
-
-        private static string FormatItemName(string itemName) =>
-            itemName.ToLower().Replace(" ", "-").Replace("'", "");
     }
 }
