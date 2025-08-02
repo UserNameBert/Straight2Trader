@@ -1,5 +1,7 @@
 Star Citizen scraper tool for checking SCU boxes values. Many use cases, priating, cargo salvage, mixed hauling.
+
 Main use is to to help keep track of mixed cargo and prices of that cargo.
+
 Its uses UEX for prices and sell locations.
 
 nuget package needed HtmlAgilityPack
